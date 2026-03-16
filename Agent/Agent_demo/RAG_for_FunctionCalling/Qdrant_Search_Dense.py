@@ -1,12 +1,10 @@
 # 用 HyDE 结果进行 密集/向量(dense) 检索
 from fastembed import TextEmbedding
-from qdrant_client import QdrantClient
+from .qdrant_instance import client
 
 # Config: 配置dense_model
 dense_model = TextEmbedding("BAAI/bge-small-en-v1.5")
-# 启动QdrantClient客户端
-DB_PATH = r"D:\Qdrant_Database"
-client = QdrantClient(DB_PATH)
+
 # Dense
 async def qdrant_search_dense(hyde_text, limit = 50):
     """

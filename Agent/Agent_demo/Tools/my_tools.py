@@ -1,6 +1,6 @@
-from tool_registry import register_tool
+# 注册并存放工具
+from .tool_registry import register_tool
 from RAG_for_FunctionCalling.Search_Internal_Docs import search_internal_docs
-from typing import List, Dict, Any
 from context_manager import simple_context_trimmer
 
 @register_tool
@@ -38,3 +38,24 @@ async def RAG(query: str, agent_messages: list = None) -> str :
 
     except Exception as e:
         return f"检索工具内部发生异常: {str(e)}"
+
+
+import random
+@register_tool
+async def weather_consulter(location : str, date : str = "今天") -> str :
+    """
+        【天气查询工具】
+        当你需要查询某个城市的天气情况、气温，或者需要根据天气给出出行/穿搭建议时，必须调用此工具。
+
+        Args:
+            location (str): 必须是标准的城市名称，例如 "北京", "上海", "广州"。
+            date (str): 查询的日期，例如 "今天", "明天", "本周五" 等。默认为 "今天"。
+    """
+    print(f"\n[Tool Calling ☁️] 触发天气查询 -> 城市: '{location}', 日期: '{date}'")
+    weather_conditions = ["晴朗 ☀️", "多云 ⛅", "小雨 🌧️", "雷阵雨 ⛈️", "微风 🍃"]
+    condition = random.choice(weather_conditions)
+    low_temp = random.randint(10, 20)
+    high_temp = random.randint(22, 35)
+    result = f"{location}{date}的天气预计为 {condition}，气温在 {low_temp}°C 到 {high_temp}°C 之间。"
+    print(f"[Tool Calling ☁️] 查询完成，返回给大模型: {result}")
+    return result

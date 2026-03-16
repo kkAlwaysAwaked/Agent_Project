@@ -1,9 +1,7 @@
 from qdrant_client import models
 from fastembed import SparseTextEmbedding
-from qdrant_client import QdrantClient
+from .qdrant_instance import client
 
-DB_PATH = r"D:\Qdrant_Database"
-client = QdrantClient(DB_PATH)
 collection_name = "hybrid_collection"
 
 sparse_model = SparseTextEmbedding("prithivida/Splade_PP_en_v1")

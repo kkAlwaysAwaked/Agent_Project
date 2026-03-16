@@ -1,7 +1,9 @@
 import json
 import asyncio
+import inspect
 from openai import AsyncOpenAI
-from tool_registry import TOOL_REGISTRY
+from Tools.tool_registry import TOOL_REGISTRY
+from Tools import my_tools # 注册工具
 from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 # 初始化客户端
@@ -24,12 +26,19 @@ async def safe_execute_tool(tool_call, current_messages : list) -> dict:
     # 执行工具逻辑
     if function_name in TOOL_REGISTRY:
         try:
-            # 工业级做法：使用 asyncio.to_thread 将同步函数扔到线程池里执行，避免阻塞主协程
             function_args["agent_messages"] = current_messages
 
-            tool_result = await asyncio.to_thread(
-                TOOL_REGISTRY[function_name]["execute"], **function_args
-            )
+            # 1. 先执行装饰器的包装层（此时只是进行 Pydantic 校验，瞬间完成）
+            exec_result = TOOL_REGISTRY[function_name]["execute"](**function_args)
+
+            # ✅ 修复 2：智能判断底层函数是同步还是异步
+            if inspect.iscoroutine(exec_result):
+                # 如果是 async def 定义的工具，直接 await 等待结果
+                tool_result = await exec_result
+            else:
+                # 如果是普通 def 定义的工具，第一步其实已经执行完了
+                tool_result = exec_result
+
         except Exception as e:
             tool_result = f"工具执行时发生未捕获异常: {str(e)}"
     else:
@@ -47,6 +56,7 @@ async def safe_execute_tool(tool_call, current_messages : list) -> dict:
 async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
     # 载入工具 + 上下文
     available_tools = [tool_info["schema"] for tool_info in TOOL_REGISTRY.values()]
+    print(f"[Debug] 当前已注册的工具列表: {list(TOOL_REGISTRY.keys())}")
     messages = [
         {"role" : "system", "content" : "你是一个强大的AI助手，请尽可能并发地使用工具以提高效率。"},
         {"role" : "user", "content" : user_query}
@@ -75,7 +85,7 @@ async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
 
             results = await asyncio.gather(*tasks, return_exceptions = True)
 
-            for i, res in results :
+            for i, res in enumerate(results) :
                 if isinstance(res, Exception):
                     # 发生系统级并发异常时的兜底反馈
                     messages.append({
@@ -92,25 +102,6 @@ async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
             print("\n=== Agent 最终回答 ===")
             return response_message.content
     return f"触发系统保护熔断：Agent 已达到最大执行步数限制 ({max_steps} steps)。"
-
-
-if __name__ == "__main__":
-    # 假设你已经在 Day1 注册了一个查询天气的 mock 函数 get_weather(location: str)
-    # 运行一下，观察它如何经过 多轮交互 最终得出答案
-    final_answer = asyncio.run(run_agent_async("北京今天天气怎么样？然后根据天气给我推荐一下穿搭。"))
-    print(final_answer)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

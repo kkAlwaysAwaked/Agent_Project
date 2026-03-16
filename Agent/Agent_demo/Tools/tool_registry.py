@@ -6,7 +6,6 @@ from pydantic import create_model, ValidationError
 TOOL_REGISTRY : Dict[str, Dict[str, Any]] = {}
 
 # 写一个Tool注册器
-
 def register_tool(func : Callable):
     """Tool 注册装饰器"""
     name = func.__name__

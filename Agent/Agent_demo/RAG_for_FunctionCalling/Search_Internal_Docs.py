@@ -1,12 +1,12 @@
 import asyncio
 from typing import List, Dict, Any
 import os
-from Query_and_HyDE import generate_hyde_vector
-from Qdrant_Search_Dense import qdrant_search_dense
-from Qdrant_Search_Sparse import qdrant_search_sparse
-from map_to_parent_and_rrf import map_to_parent_and_rrf
-from Docs_for_Reranker import fetch_parent_docs_by_ids
-from Reranker_Model import rerank_documents
+from .Query_and_HyDE import generate_hyde_vector
+from .Qdrant_Search_Dense import qdrant_search_dense
+from .Qdrant_Search_Sparse import qdrant_search_sparse
+from .map_to_parent_and_rrf import map_to_parent_and_rrf
+from .Docs_for_Reranker import fetch_parent_docs_by_ids
+from .Reranker_Model import rerank_documents
 
 # Config 数据库来源
 DB_PATH = r"D:\Qdrant_Database"
@@ -38,10 +38,8 @@ async def search_internal_docs(messages: List[Dict[str, str]]) -> List[Dict[str,
     # 用 HyDE 改写结果进行Dense查询
     # 用重写后 Query 进行Sparse查询
     print("[RAG_for_FunctionCalling] 正在并发执行 Dense 和 Sparse 双路检索...")
-    dense_child_results, sparse_child_results = await asyncio.gather(
-        qdrant_search_dense(hyde_doc, limit=50),
-        qdrant_search_sparse(rewritten_query, limit=50)
-    )
+    dense_child_results =  await qdrant_search_dense(hyde_doc, limit=50),
+    sparse_child_results = await qdrant_search_sparse(rewritten_query, limit=50)
     # return formatted_results = [
     #     {
     #         "id": point.id,  # 子文档的 ID（用于 RRF 打分）
