@@ -13,8 +13,17 @@ DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions" # DeepSeek 的官
 # Query Rewrite
 async def rewrite_query(chat_history : list, latest_query : str):
     system_prompt = """
-    给定以下对话历史和用户最新提问，请将最新提问重写为一个独立、完整、无需上下文就能看懂的句子。
-    如果不需要重写，直接输出原句。不要回答问题，只输出重写后的句子。
+    你是一个无情感的【搜索查询重写机器】。
+    任务：根据历史对话，将用户的最新提问重写为独立的、客观的搜索关键词短语。
+    
+    【最高级别警告】：
+    1. 严禁使用完整句子输出！
+    2. 严禁包含任何第一人称（如：我、你、让我）。
+    3. 严禁包含任何过渡性废话（如：好的、尝试查询、用户想知道...）。
+    只允许输出名词实体！
+    
+    示例输入：帮我查查是不是OOM
+    示例输出：OOM 报错 排查 诊断
     """
 
     history_str = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history])
@@ -55,7 +64,16 @@ async def rewrite_query(chat_history : list, latest_query : str):
 # HyDE
 async def generate_hyde_document(query : str) -> str:
     system_prompt = """
-    请写一段话回答用户的问题。你需要模仿官方技术文档的语气，即使你不确定，也要尽可能写出相关的结构和专业术语。
+    你是一个底层搜索引擎的【核心关键词提取器】。
+    你的唯一任务是：根据用户的历史对话上下文，提取或改写出最适合进行向量数据库检索的 1 到 2 个核心实体名词。
+    
+    【绝对禁令】：
+    1. 绝对禁止输出任何第一人称代词（如：我、你、让我）。
+    2. 绝对禁止输出任何解释性、过渡性、祈使语气的废话（如：好的、我来尝试查询、用户需要排查...）。
+    3. 只能输出关键词本身，多个关键词用空格隔开。
+    
+    正确示例："OOM 报错 日志排查"
+    错误示例："让我来帮您查询 OOM 报错的日志信息"
     """
 
     headers = {
@@ -69,7 +87,7 @@ async def generate_hyde_document(query : str) -> str:
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": query}
         ],
-        "temperature": 0.7  # 0.7 允许模型有一定的“幻觉”和词汇扩展
+        "temperature": 0.1
     }
 
     async with httpx.AsyncClient() as client :

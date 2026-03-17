@@ -11,11 +11,23 @@ def map_to_parent_and_rrf(dense_child_results : list, sparse_child_results : lis
     先将子文档映射为父文档（保留最高排名），再进行 RRF 融合打分。
     返回排序后的 [(parent_id, rrf_score), ...] 列表。
     """
+
     # 辅助函数：提取父文档及其最高排名
     def get_parent_ranks(children_list):
         parent_ranks = {}
         for rank, child in enumerate(children_list):
-            pid = child["parent_id"]
+            # 1. 安全地获取原始 pid
+            raw_pid = child.get("parent_id")
+
+            # 2. 如果数据库把字符串包成了列表，提取第一个元素
+            if isinstance(raw_pid, list):
+                pid = raw_pid[0] if len(raw_pid) > 0 else "unknown_parent"
+            else:
+                pid = raw_pid or "unknown_parent"
+
+            # 3. 【终极兜底】：强制转为字符串！确保它绝对可以作为字典的 Key
+            pid = str(pid)
+
             if pid not in parent_ranks:
                 parent_ranks[pid] = rank + 1
         return parent_ranks

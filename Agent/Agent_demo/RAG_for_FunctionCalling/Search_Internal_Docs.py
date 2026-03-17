@@ -37,8 +37,10 @@ async def search_internal_docs(messages: List[Dict[str, str]]) -> List[Dict[str,
     # 2. 双路查询 (Dense + Sparse) - 并发执行
     # 用 HyDE 改写结果进行Dense查询
     # 用重写后 Query 进行Sparse查询
-    print("[RAG_for_FunctionCalling] 正在并发执行 Dense 和 Sparse 双路检索...")
-    dense_child_results =  await qdrant_search_dense(hyde_doc, limit=50),
+    # 终极正确写法：直接调用同步函数拿到列表
+    print("[RAG_for_FunctionCalling] 正在执行 Dense 和 Sparse 双路检索...")
+
+    dense_child_results = await qdrant_search_dense(hyde_doc, limit=50)
     sparse_child_results = await qdrant_search_sparse(rewritten_query, limit=50)
     # return formatted_results = [
     #     {

@@ -140,3 +140,4 @@ if __name__ == "__main__":
     print(f"请确保你的文本文件已经放在了 {SOURCE_DATA_FOLDER} 下面。")
     build_database(SOURCE_DATA_FOLDER)
 
+    client.close()

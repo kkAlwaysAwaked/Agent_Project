@@ -9,8 +9,10 @@ TOOL_REGISTRY : Dict[str, Dict[str, Any]] = {}
 def register_tool(func : Callable):
     """Tool 注册装饰器"""
     name = func.__name__
-    # 1. 提取 DocsString(LLM 理解工具的唯一途径)
+    # 1. 提取 DocsString，LLM 理解工具的唯一途径
     description = inspect.getdoc(func) or "未提供工具描述"
+
+# --- 提取函数签名，参数名字，参数类型的标准方法 ---
 
     # 2. 提取函数签名，动态构建 Pydantic Model
     sig = inspect.signature(func)
@@ -19,7 +21,10 @@ def register_tool(func : Callable):
     # 3.16 修改：增加一个标志位，做幽灵参数
     needs_context = False
     # 3. 把扫描到的参数名字、类型（是整数还是布尔值）、有没有默认值，一个个整理出来，塞进 fields 字典里。
+    # sig.parameters.items 类似一个有序字典
+    # inspect.Parameter 对象存放4个函数核心属性：.name, .annotation(类型注解), .default, .kind
     for param_name, param in sig.parameters.items():
+        # 如果函数需要传入完整的大模型上下文，修改needs_context标志位，下文再传
         if param_name == "agent_messages":
             needs_context = True
             continue
@@ -67,6 +72,7 @@ def register_tool(func : Callable):
     }
 
     return execute_wrapper # 返回包装后的原函数
+
 
 # ---测试代码---
 # @register_tool

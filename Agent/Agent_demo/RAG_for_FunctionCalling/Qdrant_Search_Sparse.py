@@ -6,7 +6,7 @@ collection_name = "hybrid_collection"
 
 sparse_model = SparseTextEmbedding("prithivida/Splade_PP_en_v1")
 
-def qdrant_search_sparse(rewritten_query : str, limit = 50):
+async def qdrant_search_sparse(rewritten_query : str, limit = 50):
     """
     接收改写后的“精炼短句”，去 qdrant 的 sparse_vector 抽屉里死磕核心词。
     """
