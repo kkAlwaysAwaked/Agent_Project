@@ -1,3 +1,5 @@
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 from sentence_transformers import CrossEncoder
 
 # 1. 加载Reranker模型 (保持在全局加载，避免每次调用函数都重新加载模型)

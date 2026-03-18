@@ -1,7 +1,7 @@
 # 注册并存放工具
 from .tool_registry import register_tool
-from RAG_for_FunctionCalling.Search_Internal_Docs import search_internal_docs
-from context_manager import simple_context_trimmer
+from Agent.Agent_demo.RAG_for_FunctionCalling.Search_Internal_Docs import search_internal_docs
+from Agent.Agent_demo.context_manager import simple_context_trimmer
 import traceback
 
 # 要返回标准的json

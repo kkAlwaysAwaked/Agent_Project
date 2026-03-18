@@ -2,13 +2,11 @@ import json
 import asyncio
 import inspect
 from openai import AsyncOpenAI
-from Tools.tool_registry import TOOL_REGISTRY
-from Tools import my_tools # 注册工具
-from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from Agent.Agent_demo.Tools.tool_registry import TOOL_REGISTRY
+from Agent.Agent_demo.Tools import my_tools # 注册工具
+from .config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+import httpx
 
-# 初始化客户端
-# 接入 Deepseek API
-client = AsyncOpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
 MODEL_NAME = "deepseek-chat"
 
 # ---状态机与动态路由 实现多跳推理---
@@ -111,11 +109,16 @@ async def safe_execute_tool(tool_call, current_messages : list) -> dict:
         "content" : str(tool_result)
     }
 
-async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
+async def run_agent_async(user_query : str, http_client: httpx.AsyncClient, max_steps : int = 5) -> str:
     # 载入工具 + 上下文
     # available_tools = [tool_info["schema"] for tool_info in TOOL_REGISTRY.values()]
 
     # 修改：引入状态机 + 不在一开始将工具全部载入，动态载入工具
+    client = AsyncOpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url=DEEPSEEK_BASE_URL,
+        http_client=http_client
+    )
     agent_state = AgentState()
 
     print(f"[Debug] 当前已注册的工具列表: {list(TOOL_REGISTRY.keys())}")
@@ -127,7 +130,7 @@ async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
     step = 0
     while step < max_steps:
         step += 1
-        print(f"\n--- [Agent 思考中... 第 {step} 轮] ---")
+        yield f"data: [系统] Agent 开始第 {step} 轮思考...\n\n"
 
         # 每次循环，获取当前允许使用的工具
         current_available_tools = get_dynamic_tools(state = agent_state)
@@ -147,7 +150,8 @@ async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
         messages.append(response_message.model_dump(exclude_none=True))
 
         if response_message.tool_calls:
-            print(f"-> 模型发起并发调用，共 {len(response_message.tool_calls)} 个工具")
+            tool_names = [tc.function.name for tc in response_message.tool_calls]
+            yield f"data: [系统] Agent 正在调用工具: {', '.join(tool_names)}...\n\n"
 
             tasks = [safe_execute_tool(tc, current_messages=messages) for tc in response_message.tool_calls]
             results = await asyncio.gather(*tasks, return_exceptions = True)
@@ -174,8 +178,23 @@ async def run_agent_async(user_query : str, max_steps : int = 5) -> str:
             continue
         else :
             print("\n=== Agent 最终回答 ===")
-            return response_message.content
-    return f"触发系统保护熔断：Agent 已达到最大执行步数限制 ({max_steps} steps)。"
+            yield f"data: ✅ [系统] 思考完毕，开始输出最终答案：\n<br><br>\n\n"
+            # 因为 OpenAI 官方库在处理带 Tools 的 stream=True 时极其复杂，
+            # 行业通用做法是拿到完整结果后，后端自行模拟打字机推给前端。
+            final_text = response_message.content
+            for char in final_text:
+                # 把换行符替换成 HTML 的 <br>，防止破坏 SSE 的 \n\n 格式
+                if char == '\n':
+                    yield "data: <br>\n\n"
+                else:
+                    yield f"data: {char}\n\n"
+                await asyncio.sleep(0.01)  # 控制打字速度
+
+            yield "data: [DONE]\n\n"
+            return
+
+    yield f"data: ⚠️ [系统保护] 触发熔断：达到最大步数 ({max_steps})。\n\n"
+    yield "data: [DONE]\n\n"
 
 
 # ----------旧版----------
