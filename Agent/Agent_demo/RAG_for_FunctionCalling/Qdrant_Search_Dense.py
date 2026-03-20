@@ -1,7 +1,8 @@
 # 用 HyDE 结果进行 密集/向量(dense) 检索
 from fastembed import TextEmbedding
 from .qdrant_instance import client
-
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 # Config: 配置dense_model
 dense_model = TextEmbedding("BAAI/bge-small-en-v1.5")
 

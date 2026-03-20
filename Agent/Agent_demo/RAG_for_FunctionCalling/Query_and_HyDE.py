@@ -3,12 +3,8 @@ import asyncio
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
+from Agent.Agent_demo.config import DEEPSEEK_BASE_URL, DEEPSEEK_API_KEY
 app = FastAPI()
-
-# Configs
-DEEPSEEK_API_KEY = ""
-DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions" # DeepSeek 的官方接口地址
 
 # Query Rewrite
 async def rewrite_query(chat_history : list, latest_query : str):
@@ -48,7 +44,7 @@ async def rewrite_query(chat_history : list, latest_query : str):
     async with httpx.AsyncClient() as client:
         try :
             response = await client.post(
-                DEEPSEEK_API_URL,
+                DEEPSEEK_BASE_URL,
                 headers = headers,
                 json = payload,
                 timeout = 10.0
@@ -93,7 +89,7 @@ async def generate_hyde_document(query : str) -> str:
     async with httpx.AsyncClient() as client :
         try :
             response = await client.post(
-                DEEPSEEK_API_URL,
+                DEEPSEEK_BASE_URL,
                 headers = headers,
                 json = payload,
                 timeout = 15.0

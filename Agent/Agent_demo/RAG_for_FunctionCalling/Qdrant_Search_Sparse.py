@@ -1,6 +1,8 @@
 from qdrant_client import models
 from fastembed import SparseTextEmbedding
 from .qdrant_instance import client
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 collection_name = "hybrid_collection"
 

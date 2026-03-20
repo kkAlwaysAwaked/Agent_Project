@@ -109,10 +109,15 @@ async def safe_execute_tool(tool_call, current_messages : list) -> dict:
         "content" : str(tool_result)
     }
 
-async def run_agent_async(user_query : str, http_client: httpx.AsyncClient, max_steps : int = 5) -> str:
+async def run_agent_async(messages : list, http_client: httpx.AsyncClient, max_steps : int = 5) -> str:
+    """
+    运行Agent循环，直接使用传入的消息列表作为初始对话上下文。
+    :param messages: 初始消息列表，应包含 system、user 等历史消息。
+    :param http_client: HTTP客户端
+    :param max_steps: 最大迭代步数
+    """
     # 载入工具 + 上下文
     # available_tools = [tool_info["schema"] for tool_info in TOOL_REGISTRY.values()]
-
     # 修改：引入状态机 + 不在一开始将工具全部载入，动态载入工具
     client = AsyncOpenAI(
         api_key=DEEPSEEK_API_KEY,
@@ -120,12 +125,7 @@ async def run_agent_async(user_query : str, http_client: httpx.AsyncClient, max_
         http_client=http_client
     )
     agent_state = AgentState()
-
-    print(f"[Debug] 当前已注册的工具列表: {list(TOOL_REGISTRY.keys())}")
-    messages = [
-        {"role" : "system", "content" : "你是一个严谨的AI工程师助手。请根据当前可用的工具一步步排查问题。如果需要的信息缺失，请先使用可用工具获取必要的前置信息。"},
-        {"role" : "user", "content" : user_query}
-    ]
+    current_messages = messages[:]
 
     step = 0
     while step < max_steps:
@@ -141,19 +141,32 @@ async def run_agent_async(user_query : str, http_client: httpx.AsyncClient, max_
         # 使用 await 调用异步 API
         response = await client.chat.completions.create(
             model = MODEL_NAME,
-            messages=messages,
+            messages=current_messages,
             tools=current_available_tools,
             tool_choice="auto"
         )
 
         response_message = response.choices[0].message
-        messages.append(response_message.model_dump(exclude_none=True))
+        assistant_msg = response_message.model_dump(exclude_none=True)
+
+        # 补丁：确保 tool_calls 中有 type
+        if assistant_msg.get("tool_calls"):
+            for tc in assistant_msg["tool_calls"]:
+                tc["type"] = "function"
+
+        # 补丁：确保 content 字段存在
+        if "content" not in assistant_msg or assistant_msg.get("content") is None:
+            assistant_msg["content"] = ""
+
+        current_messages.append(assistant_msg)
+        # --- 补丁结束 ---
+
 
         if response_message.tool_calls:
             tool_names = [tc.function.name for tc in response_message.tool_calls]
             yield f"data: [系统] Agent 正在调用工具: {', '.join(tool_names)}...\n\n"
 
-            tasks = [safe_execute_tool(tc, current_messages=messages) for tc in response_message.tool_calls]
+            tasks = [safe_execute_tool(tc, current_messages=current_messages) for tc in response_message.tool_calls]
             results = await asyncio.gather(*tasks, return_exceptions = True)
 
             processed_results = []
@@ -166,10 +179,10 @@ async def run_agent_async(user_query : str, http_client: httpx.AsyncClient, max_
                         "name": response_message.tool_calls[i].function.name,
                         "content": f"系统级并发异常: {str(res)}"
                     }
-                    messages.append(error_res)
+                    current_messages.append(error_res)
                     processed_results.append(res)
                 else:
-                    messages.append(res)
+                    current_messages.append(res)
                     processed_results.append(res)
 
             # 把执行结果喂给状态机，让它更新状态

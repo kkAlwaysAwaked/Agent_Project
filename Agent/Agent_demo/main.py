@@ -1,5 +1,4 @@
 import os
-# 魔法指令：将 Hugging Face 的下载请求全部重定向到国内镜像站
 os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 
 from agent_engine import run_agent_async
